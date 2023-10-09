@@ -1,0 +1,11 @@
+---
+# defaults file for ansible-role-minio-example
+minio_access_key: "root"
+minio_secret_key: "root@2030"
+minio_volume_bind: "/minio-disk"
+minio_ports_api: "9000"
+minio_ports_console: "9664"
+minio_browser_enabled: "true"
+minio_secure_ssl_redirect_enabled: "off"
+Disk1: "/dev/sdb"
+Disk2: "/dev/sdc"

@@ -1,0 +1,108 @@
+- name: Download minio server
+  get_url:
+    url: http://192.168.10.55:8081/repository/bin-files/bin-files/minio
+    dest: "/usr/bin/minio"
+    mode: 'a+x'
+    owner: minio-user
+
+- name: Create a symbolic link
+  ansible.builtin.file:
+    src: /usr/bin/minio
+    dest: /usr/local/bin/minio
+    state: link
+
+- name: fmt hard disk
+  shell: |
+     printf "o\nn\np\n1\n\n\nw\n"  | fdisk {{ Disk1 }}
+     printf "o\nn\np\n1\n\n\nw\n"  | fdisk {{ Disk2 }}
+     mkfs.xfs  -f  {{Disk1}}1
+     mkfs.xfs  -f  {{Disk2}}1
+     #    lsblk | grep  sd | grep -v sda | awk '{print $1}' | xargs -I {} mkfs.xfs /dev/{}
+  ignore_errors: true
+
+- name: stop minio
+  shell: |
+    systemctl stop minio
+  ignore_errors: true
+
+- name: Create minio-disk1 dir
+  ansible.builtin.file:
+   path: /minio-disk1
+   state: directory
+
+- name: Create minio-disk2 dir
+  ansible.builtin.file:
+   path: /minio-disk2
+   state: directory
+
+- name: Mount the device  "{{Disk1}}1"
+  ansible.builtin.mount:
+   src: "{{Disk1}}1"
+   path: /minio-disk1
+   fstype: xfs
+   opts: defaults
+   state: mounted
+
+
+- name: Mount the device  "{{Disk2}}1"
+  ansible.builtin.mount:
+   src: "{{Disk2}}1"
+   path: /minio-disk2
+   fstype: xfs
+   opts: defaults
+   state: mounted
+
+- name: Change ownership of the file minio-disk1
+  ansible.builtin.file:
+   path: /minio-disk1
+   owner: minio-user
+   group: minio-user
+   recurse: yes
+
+- name: Change ownership of the file minio-disk2
+  ansible.builtin.file:
+   path: /minio-disk2
+   owner: minio-user
+   group: minio-user
+   recurse: yes
+
+- name: Add the line to /etc/fstab /minio-disk1
+  ansible.builtin.lineinfile:
+   path: /etc/fstab
+   line: "/dev/sdb1 /minio-disk1 xfs defaults,noatime,nofail 0 0"  # Replace with the line you want to add
+   state: present
+   create: yes
+
+- name: Add the line to /etc/fstab /minio-disk2
+  ansible.builtin.lineinfile:
+   path: /etc/fstab
+   line: "/dev/sdb1 /minio-disk2 xfs defaults,noatime,nofail 0 0"  # Replace with the line you want to add
+   state: present
+   create: yes
+
+
+- name: Generate the Minio server envfile
+  template:
+    src: minio.env.j2
+    dest: "/etc/default/minio"
+    owner: "root"
+    group: "minio-user"
+    mode: 0640
+
+- name: Create systemd for minio
+  get_url:
+    url: http://192.168.10.55:8081/repository/bin-files/bin-files/minio.service
+    dest: "/etc/systemd/system/minio.service"
+    owner: root
+    group: root
+
+
+
+
+
+- name: Restart service minio
+  ansible.builtin.systemd:
+    state: restarted
+    daemon_reload: yes
+    name: minio
+    enabled: yes

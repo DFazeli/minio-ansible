@@ -1,0 +1,12 @@
+- name: Download minio client
+  get_url:
+    url: http://192.168.10.55:8081/repository/bin-files/bin-files/mc
+    dest: "/usr/bin/mc"
+    mode: 'a+x'
+    owner: minio-user
+
+- name: Create a symbolic link
+  ansible.builtin.file:
+    src: /usr/bin/mc
+    dest: /usr/local/bin/mc
+    state: link
